@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ~login~
+  name: lab0-jupyter-cm
+data:
+  jupyter_notebook_config.py: |
+    c.NotebookApp.trust_xheaders = True
+    c.NotebookApp.quit_button = False
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: ~login~
+  name: lab0-jupyter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      jupyter: lab0
+  template:
+    metadata:
+      labels:
+        jupyter: lab0
+    spec:
+      volumes:
+      - name: config
+        configMap:
+          name: lab0-jupyter-cm
+      containers:
+        - name: jupyter
+          image: node03.st:5000/pyspark-hdfs-jupyter:~login~
+          ports:
+          - containerPort: 8282
+          command: [ "start-notebook.sh" ]
+          args: [ "--NotebookApp.port=8282", "--NotebookApp.token='~password~'" ]
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+          volumeMounts:
+          - name: config
+            mountPath: "/home/jovyan/.jupyter/jupyter_notebook_config.py"
+            subPath: "jupyter_notebook_config.py"
+            readOnly: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: ~login~
+  name: lab0-jupyter-service
+spec:
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8282
+  selector:
+    jupyter: lab0
+
+
+---
+
+kubectl logs jupyter --timestamps > lab0-jupyter.log
+echo "kubectl exec lab0-jupyter-b6c5d47c6-gjzt4 -- ls -lah /home/jovyan/.jupyter" > lab0-ls-lah.sh
